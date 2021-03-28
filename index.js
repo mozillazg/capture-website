@@ -120,7 +120,7 @@ const parseCookie = (url, cookie) => {
 	return returnValue;
 };
 
-const imagesHaveLoaded = () => [...document.images].map(element => element.complete);
+const imagesHaveLoaded = () => [...document.images].every(element => element.complete);
 
 const captureWebsite = async (input, options) => {
 	options = {
@@ -301,6 +301,8 @@ const captureWebsite = async (input, options) => {
 
 	if (options.beforeScreenshot) {
 		await options.beforeScreenshot(page, browser);
+	} else {
+		await defaultBeforeScreenshot(input, page, browser);
 	}
 
 	if (options.element) {
@@ -425,4 +427,36 @@ module.exports.devices = Object.values(puppeteer.devices).map(device => device.n
 
 if (process.env.NODE_ENV === 'test') {
 	module.exports._startBrowser = puppeteer.launch.bind(puppeteer);
+}
+
+async function defaultBeforeScreenshot(url, page, browser) {
+	await Promise.all([
+		fixForWechat(url, page),
+	])
+}
+
+/* wechat images lazy loading */
+async function fixForWechat(url, page) {
+	if (!url.includes("mp.weixin.qq.com")) {
+		return
+	}
+
+	await page.evaluate(() => {
+		let promises = Array.from(document.querySelectorAll('.img_loading')).map(img => {
+			let timeout = new Promise(resolve => {
+				setTimeout(resolve, 30 * 1000)
+			})
+			let load = new Promise(resolve => {
+				if (img.src === img.dataset.src) {
+					resolve()
+				} else {
+					img.src = img.dataset.src
+					img.classList.remove('img_loading')
+					img.addEventListener('load', resolve)
+				}
+			})
+			return Promise.race([timeout, load])
+		})
+		return Promise.all(promises)
+	})
 }
