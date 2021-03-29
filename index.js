@@ -3,8 +3,14 @@
 const {promisify} = require('util');
 const fs = require('fs');
 const fileUrl = require('file-url');
-const puppeteer = require('puppeteer');
+const puppeteerOrig = require('puppeteer');
+const puppeteer = require('puppeteer-extra')
 const toughCookie = require('tough-cookie');
+
+const StealthPlugin = require('puppeteer-extra-plugin-stealth')
+puppeteer.use(StealthPlugin())
+const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker')
+puppeteer.use(AdblockerPlugin())
 
 const writeFile = promisify(fs.writeFile);
 
@@ -467,7 +473,7 @@ module.exports.base64 = async (url, options) => {
 	return screenshot.toString('base64');
 };
 
-module.exports.devices = Object.values(puppeteer.devices).map(device => device.name);
+module.exports.devices = Object.values(puppeteerOrig.devices).map(device => device.name);
 
 if (process.env.NODE_ENV === 'test') {
 	module.exports._startBrowser = puppeteer.launch.bind(puppeteer);
