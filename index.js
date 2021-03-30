@@ -383,7 +383,13 @@ const captureWebsite = async (input, options) => {
 			window.scrollTo(0, document.documentElement.scrollHeight);
 			/* eslint-enable no-undef */
 		});
-		await page.waitForTimeout(1000).catch((e) => {console.error(e)});
+		await page.waitForTimeout(2000).catch((e) => {console.error(e)});
+		await page.evaluate(_ => {
+			/* eslint-disable no-undef */
+			window.scrollTo(0, 0);
+			/* eslint-enable no-undef */
+		});
+		await page.waitForTimeout(2000).catch((e) => {console.error(e)});
 
 		// // Workaround for chromium height limitations:  https://bugs.chromium.org/p/chromium/issues/detail?id=770769#c12
 		// const maxTextureSize = await page.evaluate(() => {
