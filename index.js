@@ -144,6 +144,7 @@ const captureWebsite = async (input, options) => {
 		_keepAlive: false,
 		isJavaScriptEnabled: true,
 		inset: 0,
+		generatePDF: false,
 		...options
 	};
 
@@ -244,7 +245,7 @@ const captureWebsite = async (input, options) => {
 	await page[isHTMLContent ? 'setContent' : 'goto'](input, {
 		timeout: timeoutInSeconds,
 		waitUntil: 'networkidle2'
-	});
+	}).catch(e => {console.error(e)});
 
 	if (options.disableAnimations) {
 		await page.evaluate(disableAnimations, options.disableAnimations);
@@ -455,28 +456,59 @@ const captureWebsite = async (input, options) => {
 
 	const buffer = await page.screenshot(screenshotOptions);
 
+	let pdfBuffer = '';
+	if (options.generatePDF) {
+		pdfBuffer = await page.pdf({
+			printBackground: true,
+			displayHeaderFooter: true,
+		})
+	}
+
 	await page.close();
 
 	if (!options._keepAlive) {
 		await browser.close();
 	}
 
-	return buffer;
+	if (options.generatePDF) {
+		return [buffer, pdfBuffer];
+	}
+	return buffer
 };
 
 module.exports.file = async (url, filePath, options = {}) => {
-	const screenshot = await captureWebsite(url, options);
+	let screenshot = '';
+	let pdfBuffer = '';
+	if (!options.generatePDF) {
+		screenshot = await captureWebsite(url, options);
+	} else {
+		[screenshot, pdfBuffer] = await captureWebsite(url, options);
+	}
 
 	await writeFile(filePath, screenshot, {
 		flag: options.overwrite ? 'w' : 'wx'
 	});
+	if (options.generatePDF) {
+		await writeFile(options.pdfPath, pdfBuffer, {
+			flag: options.overwrite ? 'w' : 'wx'
+		});
+	}
 };
 
 module.exports.buffer = async (url, options) => captureWebsite(url, options);
 
 module.exports.base64 = async (url, options) => {
-	const screenshot = await captureWebsite(url, options);
-	return screenshot.toString('base64');
+	let screenshot = '';
+	let pdfBuffer = '';
+	if (!options.generatePDF) {
+		screenshot = await captureWebsite(url, options);
+	} else {
+		[screenshot, pdfBuffer] = await captureWebsite(url, options);
+	}
+	if (!options.generatePDF) {
+		return screenshot.toString('base64');
+	}
+	return [screenshot.toString('base64'), pdfBuffer.toString('base64')];
 };
 
 module.exports.devices = Object.values(puppeteerOrig.devices).map(device => device.name);
@@ -513,8 +545,8 @@ async function fixForWechat(url, page) {
 			}).catch((e) => {console.error(e)})
 			return Promise.race([timeout, load])
 		})
-		return Promise.all(promises)
-	})
+		return Promise.all(promises).catch(e => {console.error(e)})
+	}).catch(e => {console.error(e)})
 }
 
 function max(values) {
